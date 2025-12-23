@@ -53,3 +53,35 @@ O sistema possui uma arquitetura modular que suporta atualmente três tipos de r
     └── fonts/              # Fontes obrigatórias
         ├── Barlow-Regular.ttf
         └── Barlow-Bold.ttf
+
+## ⚙️ Instalação e Uso
+1. Pré-requisitos
+Certifique-se de ter o Python instalado. Recomenda-se o uso de um ambiente virtual.
+
+2. Instalação das dependências
+No terminal, execute:
+
+Bash
+
+pip install -r requirements.txt
+3. Configuração de Assets
+Para que o PDF seja gerado corretamente com a identidade visual:
+
+Crie uma pasta assets/fonts/.
+
+Baixe a fonte Barlow (Regular e Bold) e coloque na pasta.
+
+Coloque o logo da empresa em assets/logo.png (ou .svg).
+
+4. Executando a Aplicação
+Rode o comando abaixo na raiz do projeto:
+
+Bash
+
+streamlit run app.py
+O navegador abrirá automaticamente com a interface.
+
+🎨 Personalização
+Toda a identidade visual (Cabeçalho, Rodapé, Fontes) está centralizada no arquivo: utils/brasfort_pdf.py
+
+Alterando este único arquivo, todos os módulos de relatório serão atualizados automaticamente.
