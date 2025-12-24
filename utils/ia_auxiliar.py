@@ -1,94 +1,67 @@
-import os
-import streamlit as st
 import google.generativeai as genai
-from pypdf import PdfReader
+import streamlit as st
+import time
 import random
 
-# Configura a chave do Google
-try:
-    if "GOOGLE_API_KEY" in st.secrets:
-        genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-        # Configuração do modelo (Temperatura baixa = mais formal/técnico)
-        generation_config = {
-            "temperature": 0.4,
-            "top_p": 0.95,
-            "top_k": 64,
-            "max_output_tokens": 8192,
-        }
-        # Usamos o Gemini 1.5 Flash que é rápido e ótimo para texto
-        model = genai.GenerativeModel(
-            model_name="gemini-flash-latest",
-            generation_config=generation_config,
-        )
-    else:
-        model = None
-except Exception as e:
-    model = None
-    print(f"Erro ao configurar Gemini: {e}")
+# --- CONFIGURAÇÃO ---
+def configurar_api():
+    try:
+        if "GOOGLE_API_KEY" in st.secrets:
+            genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+            return True
+    except:
+        pass
+    return False
 
-def ler_exemplos_pasta():
-    """Lê aleatoriamente 3 PDFs da pasta estudo_relatorios para usar como contexto."""
-    pasta = "estudo_relatorios"
-    texto_contexto = ""
-    
-    if not os.path.exists(pasta):
-        return "Nenhum exemplo encontrado (pasta não existe)."
+# Modelos (Principal e Reserva)
+MODELO_PRINCIPAL = "gemini-2.5-flash"
+MODELO_BACKUP = "gemini-1.5-flash"
 
-    arquivos = [f for f in os.listdir(pasta) if f.endswith('.pdf')]
-    
-    if not arquivos:
-        return "Nenhum PDF de exemplo encontrado."
+def melhorar_texto_com_ia(texto_usuario, tipo_documento="Relatório Técnico"):
+    """
+    Função focada puramente em TEXTUALIZAÇÃO.
+    Transforma texto informal em formal, sem buscar dados externos.
+    """
+    if not configurar_api():
+        return "Erro: Chave de API não configurada no secrets.toml"
 
-    # Seleciona até 3 arquivos para dar contexto sem exagerar
-    amostra = random.sample(arquivos, min(len(arquivos), 3))
-
-    for arquivo in amostra:
-        try:
-            reader = PdfReader(os.path.join(pasta, arquivo))
-            texto_pdf = ""
-            # Lê apenas a primeira página (resumo/introdução)
-            for page in reader.pages[:1]: 
-                texto_pdf += page.extract_text()
-            texto_contexto += f"\n--- EXEMPLO REAL ({arquivo}) ---\n{texto_pdf}\n"
-        except Exception as e:
-            print(f"Erro ao ler {arquivo}: {e}")
-            
-    return texto_contexto
-
-def melhorar_texto_com_ia(texto_rascunho, tipo_relatorio):
-    """Envia o rascunho para o Gemini reescrever."""
+    # Prompt focado na escrita técnica
+    instrucao = f"""
+    Atue como um Supervisor Técnico Sênior da Brasfort.
+    Sua única função é reescrever o texto abaixo para torná-lo profissional, formal e técnico.
     
-    if not model:
-        return "ERRO: Chave do Google não configurada no secrets.toml"
-
-    exemplos = ler_exemplos_pasta()
-
-    # O Prompt (Instrução) para o Gemini
-    prompt_completo = f"""
-    Você é um Supervisor Técnico da BRASFORT. 
-    Sua tarefa é reescrever o relato informal abaixo para um padrão técnico, formal e culto.
+    Regras:
+    1. Corrija português, pontuação e concordância.
+    2. Substitua gírias por termos técnicos (ex: "fio solto" -> "cabeamento desconectado").
+    3. Seja direto e impessoal (ex: "Foi realizado..." em vez de "Eu fiz...").
+    4. Mantenha o sentido original da mensagem.
     
-    TIPO DE RELATÓRIO: {tipo_relatorio}
+    Contexto: Este texto entrará em um {tipo_documento}.
     
-    DIRETRIZES:
-    1. Corrija erros gramaticais.
-    2. Use termos técnicos da área de segurança eletrônica (CFTV, LPR, Redes).
-    3. Use voz passiva ("Foi identificado" ao invés de "Eu vi").
-    4. Seja direto e profissional.
+    Texto Original: "{texto_usuario}"
     
-    Abaixo estão exemplos de como escrevemos na empresa (para você copiar o estilo):
-    {exemplos}
-    
-    ---
-    RASCUNHO INFORMAL (Reescreva isto):
-    "{texto_rascunho}"
-    
-    RESPOSTA REESCRITA (Apenas o texto técnico):
+    Texto Melhorado:
     """
 
+    # Lógica de Tentativa (Try/Except) para não travar
     try:
-        # Chama o Gemini
-        response = model.generate_content(prompt_completo)
-        return response.text.strip()
+        model = genai.GenerativeModel(MODELO_PRINCIPAL)
+        response = model.generate_content(instrucao)
+        return response.text
     except Exception as e:
-        return f"Erro ao conectar com Gemini: {e}"
+        erro_str = str(e)
+        # Se for erro de cota (429), tenta o backup
+        if "429" in erro_str or "quota" in erro_str.lower():
+            try:
+                time.sleep(1)
+                model_bkp = genai.GenerativeModel(MODELO_BACKUP)
+                response = model_bkp.generate_content(instrucao)
+                return response.text
+            except:
+                return f"Erro na IA (Backup falhou): {e}"
+        else:
+            return f"Erro na IA: {e}"
+
+# Mantemos essa função vazia ou simples para não quebrar outros módulos que a chamem
+def ler_exemplos_pasta():
+    return ""

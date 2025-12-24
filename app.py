@@ -1,54 +1,46 @@
 import streamlit as st
-# Importando módulos
-from modules import lpr
-from modules import equipamento
-from modules import visita  # <--- NOVO IMPORT
-from modules import faturamento
-from modules import manutencao
-from modules import parecer
+import os
 
-st.set_page_config(page_title="Gerador de Relatórios Brasfort", page_icon="📝")
-st.title("📝 Sistema de Relatórios Técnicos")
+# Importação dos módulos
+from modules import lpr, visita, faturamento, manutencao, parecer
 
-st.sidebar.image("assets/logo.png", use_container_width=True) # Se tiver o logo já mostra no menu
-st.sidebar.title("Menu de Opções")
+# Configuração
+st.set_page_config(page_title="Gerador de Relatórios Brasfort", page_icon="📄", layout="wide")
 
-tipo_relatorio = st.sidebar.selectbox(
-    "Selecione o Relatório:",
-    ["Ocorrência LPR", "Avaria de Equipamento", "Visita Técnica", "Faturamento", "Manutenção", "Parecer"]
-)
+# --- MENU LATERAL ---
+with st.sidebar:
+    st.image("assets/logo.png", width=200)
+    st.title("Menu")
 
-# Inicializa estado
-if "arquivo_gerado" not in st.session_state:
-    st.session_state.arquivo_gerado = None
+    tipo_relatorio = st.selectbox(
+        "Selecione o Relatório:",
+        [
+            "Selecione...",
+            "Relatório de Manutenção",
+            "Relatório para Faturamento",
+            "Visita Técnica",
+            "Parecer Técnico",
+            "Incidente LPR (Acesso)"
+        ]
+    )
+    st.info("Sistema v2.0 - Foco em Textualização")
 
-# Roteador de Telas
-if tipo_relatorio == "Ocorrência LPR":
-    lpr.renderizar_formulario_lpr()
+# --- ROTEAMENTO ---
+if tipo_relatorio == "Selecione...":
+    st.title("Gerador de Relatórios 📄")
+    st.write("Selecione um módulo no menu lateral para começar.")
 
-elif tipo_relatorio == "Avaria de Equipamento":
-    equipamento.renderizar_formulario_equipamento()
+elif tipo_relatorio == "Relatório de Manutenção":
+    manutencao.renderizar_formulario_manutencao()
+
+elif tipo_relatorio == "Relatório para Faturamento":
+    faturamento.renderizar_formulario_faturamento()
 
 elif tipo_relatorio == "Visita Técnica":
     visita.renderizar_formulario_visita()
 
-elif tipo_relatorio == "Faturamento":
-    faturamento.renderizar_formulario_faturamento()
-
-elif tipo_relatorio == "Manutenção":
-    manutencao.renderizar_formulario_manutencao()
-
-elif tipo_relatorio == "Parecer":
+elif tipo_relatorio == "Parecer Técnico":
     parecer.renderizar_formulario_parecer()
 
-# Botão de Download Global
-st.divider()
-if st.session_state.arquivo_gerado:
-    st.success(f"Arquivo pronto: {st.session_state.arquivo_gerado}")
-    with open(st.session_state.arquivo_gerado, "rb") as f:
-        st.download_button(
-            label="📄 Baixar PDF Finalizado",
-            data=f,
-            file_name=st.session_state.arquivo_gerado,
-            mime="application/pdf"
-        )
+elif tipo_relatorio == "Incidente LPR (Acesso)":
+    lpr.renderizar_formulario_lpr()
