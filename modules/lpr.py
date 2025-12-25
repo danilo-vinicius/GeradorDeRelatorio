@@ -1,216 +1,206 @@
 import streamlit as st
 import os
-from datetime import datetime
 from utils.brasfort_pdf import RelatorioBrasfort
 from utils.ia_auxiliar import melhorar_texto_com_ia
 
-# --- FUNÇÃO AUXILIAR ---
-def calcular_tempo(inicio_str, fim_str):
-    try:
-        formato = "%H:%M:%S"
-        t_inicio = datetime.strptime(inicio_str, formato)
-        t_fim = datetime.strptime(fim_str, formato)
-        delta = t_fim - t_inicio
-        return str(delta)
-    except:
-        return "Erro"
-
 # --- MOTOR PDF ---
 def gerar_relatorio_lpr(dados):
-    pdf = RelatorioBrasfort(titulo="RELATÓRIO DE OCORRÊNCIA - LPR")
+    # Título da Capa
+    pdf = RelatorioBrasfort(titulo="Relatório de Ocorrência - Sistema LPR")
     
     # Capa
     pdf.gerar_capa(
-        titulo_principal="Incidente de Controle de Acesso (LPR)",
-        sub_titulo=f"Veículo: {dados['placa']}\nLocal: {dados['cliente']}",
-        autor=dados['operador']
+        titulo_principal="Relatório de Ocorrência - Sistema LPR",
+        sub_titulo=f"Cliente: {dados['cliente']}\nUnidade: {dados['unidade']}",
+        autor=dados['tecnico']
     )
     
     pdf.add_page()
-    
-    # Cabeçalho Interno
-    pdf.set_y(30)
-    pdf.set_font('Barlow', 'B', 12)
-    pdf.cell(0, 6, f"Cliente: {dados['cliente']}", ln=True)
-    pdf.cell(0, 6, f"Placa do Veículo: {dados['placa']}", ln=True)
-    pdf.set_font('Barlow', '', 12)
-    pdf.cell(0, 6, f"Data da Ocorrência: {dados['data']}", ln=True)
+    pdf.ln(5)
+
+    # Título do Relatório
+    pdf._set_font('B', 16)
+    pdf.set_text_color(10, 35, 80)
+    pdf.cell(0, 10, pdf.titulo_documento, 0, 1, 'C')
     pdf.ln(10)
 
-    # --- 1. CONTEXTO (IA) ---
+    # Cabeçalho Interno
     pdf.set_font('Barlow', 'B', 12)
-    pdf.cell(0, 8, "1. Descrição da Ocorrência", ln=True)
-    
-    pdf.set_font('Barlow', '', 11)
-    pdf.multi_cell(0, 6, dados['contexto'], align='J')
+    pdf.cell(0, 6, f"Cliente: {dados['cliente']}", ln=True)
+    pdf.set_font('Barlow', '', 12)
+    pdf.cell(0, 6, f"Unidade: {dados['unidade']}", ln=True)
+    pdf.cell(0, 6, f"Data: {dados['data']}", ln=True)
     pdf.ln(5)
 
-    # --- 2. ANÁLISE TEMPORAL ---
-    tempo_total = calcular_tempo(dados['hora_chegada'], dados['hora_abertura'])
-    
-    pdf.set_fill_color(245, 245, 245)
+    # --- 1. OBJETIVO ---
     pdf.set_font('Barlow', 'B', 12)
-    pdf.cell(0, 8, "2. Análise de Logs do Sistema (Tempos)", ln=True, fill=True)
-    
-    pdf.set_font('Barlow', '', 11)
-    pdf.ln(2)
-    
-    # Tabela simples
-    pdf.cell(40, 8, "Chegada (Câmera):", border='B')
-    pdf.cell(30, 8, dados['hora_chegada'], ln=True)
-    
-    pdf.cell(40, 8, "Leitura (OCR):", border='B')
-    pdf.cell(30, 8, dados['hora_leitura'], ln=True)
-    
-    pdf.cell(40, 8, "Abertura Portão:", border='B')
-    pdf.cell(30, 8, dados['hora_abertura'], ln=True)
-    pdf.ln(5)
-    
-    # Destaque Vermelho
-    pdf.set_text_color(200, 0, 0)
-    pdf.set_font('Barlow', 'B', 12)
-    pdf.cell(0, 10, f"Tempo Total de Processamento: {tempo_total}", ln=True)
-    pdf.set_text_color(0, 0, 0)
+    pdf.cell(0, 8, "1. OBJETIVO", ln=True)
     pdf.set_font('Barlow', '', 11)
     
-    # Explicação Técnica da Falha (IA)
-    if dados['analise_tecnica']:
-        pdf.ln(2)
-        pdf.multi_cell(0, 6, dados['analise_tecnica'], align='J')
+    # Texto fiel aos exemplos [cite: 156]
+    texto_obj = (f"Registrar e analisar, de forma técnica e objetiva, a ocorrência relatada pela unidade {dados['unidade']} "
+                 "envolvendo o sistema de Leitura Automática de Placas (LPR), apontando evidências, "
+                 "causas prováveis e providências adotadas.")
+    pdf.multi_cell(0, 6, texto_obj, align='J')
     pdf.ln(5)
 
-    # --- 3. EVIDÊNCIAS ---
+    # --- 2. METODOLOGIA (Fixo/Padrão) ---
     pdf.set_font('Barlow', 'B', 12)
-    pdf.cell(0, 8, "3. Evidências Visuais", ln=True)
-    pdf.ln(2)
-    
-    lista_imgs = [
-        ("Registro de Chegada", dados['img_chegada']),
-        ("Momento da Leitura", dados['img_leitura']),
-        ("Acionamento do Portão", dados['img_abertura'])
-    ]
+    pdf.cell(0, 8, "2. METODOLOGIA DE VERIFICAÇÃO", ln=True)
+    pdf.set_font('Barlow', '', 11)
+    # Itens extraídos dos relatórios [cite: 159-162]
+    metodologia = (
+        "- Consulta aos logs de eventos do LPR e da controladora de acesso.\n"
+        "- Análise de gravações de vídeo das câmeras de Entrada/Saída.\n"
+        "- Conferência dos cadastros de veículos vinculados à unidade.\n"
+        "- Checagem do status do servidor LPR e conectividade."
+    )
+    pdf.multi_cell(0, 6, metodologia, align='J')
+    pdf.ln(5)
 
-    for titulo, caminho_img in lista_imgs:
-        if caminho_img and os.path.exists(caminho_img):
-            if pdf.get_y() > 220: pdf.add_page()
-            
-            pdf.set_font('Barlow', 'I', 10)
-            pdf.cell(0, 6, titulo, ln=True)
-            try:
-                pdf.image(caminho_img, x=15, w=110)
-            except:
-                pdf.cell(0, 6, "[Erro na imagem]", ln=True)
-            pdf.ln(5)
+    # --- 3. DESCRIÇÃO DA OCORRÊNCIA ---
+    pdf.set_font('Barlow', 'B', 12)
+    pdf.cell(0, 8, "3. DESCRIÇÃO DA OCORRÊNCIA", ln=True)
+    pdf.set_font('Barlow', '', 11)
+    pdf.multi_cell(0, 6, dados['descricao'], align='J')
+    pdf.ln(5)
 
-    # --- 4. CONCLUSÃO ---
-    if dados['conclusao']:
-        if pdf.get_y() > 240: pdf.add_page()
+    # --- 4. LINHA DO TEMPO E ANÁLISE ---
+    pdf.set_font('Barlow', 'B', 12)
+    pdf.cell(0, 8, "4. LINHA DO TEMPO E ANÁLISE TÉCNICA", ln=True)
+    pdf.set_font('Barlow', '', 11)
+    pdf.multi_cell(0, 6, dados['analise'], align='J')
+    pdf.ln(5)
+
+    # --- 5. CONCLUSÃO ---
+    pdf.set_font('Barlow', 'B', 12)
+    pdf.cell(0, 8, "5. CONCLUSÃO", ln=True)
+    pdf.set_font('Barlow', '', 11)
+    pdf.multi_cell(0, 6, dados['conclusao'], align='J')
+    pdf.ln(10)
+
+    # --- 6. ANEXOS (Fotos) ---
+    if dados['lista_fotos']:
+        # Se tiver pouco espaço, quebra página
+        if pdf.get_y() > 200: pdf.add_page()
+        
         pdf.set_font('Barlow', 'B', 12)
-        pdf.cell(0, 8, "4. Conclusão e Providências", ln=True)
-        pdf.set_font('Barlow', '', 11)
-        pdf.multi_cell(0, 6, dados['conclusao'], align='J')
+        pdf.cell(0, 8, "6. ANEXOS (EVIDÊNCIAS)", ln=True)
         pdf.ln(5)
+        
+        for i, foto in enumerate(dados['lista_fotos']):
+            if os.path.exists(foto):
+                # Centraliza
+                x_cent = (210 - 160) / 2
+                
+                # Verifica quebra de página para imagem
+                if pdf.get_y() + 100 > 280: pdf.add_page()
+                
+                pdf.image(foto, x=x_cent, w=160)
+                pdf.set_font('Barlow', 'I', 9)
+                pdf.cell(0, 6, f"Evidência {i+1}: Registro visual / Log do sistema", align='C', ln=True)
+                pdf.ln(5)
 
-    pdf.bloco_assinatura(dados['operador'])
-
-    nome_arquivo = f"LPR_{dados['placa']}_{dados['cliente'].split()[0]}.pdf"
+    pdf.bloco_assinatura(dados['tecnico'])
+    
+    nome_arquivo = f"LPR_{dados['unidade']}_{dados['data'].replace('/','-')}.pdf"
     pdf.output(nome_arquivo)
     return nome_arquivo
 
 # --- INTERFACE ---
 def renderizar_formulario_lpr():
-    st.subheader("🚗 Incidente de Acesso (LPR)")
-    st.caption("Relatório detalhado de falhas de leitura ou acesso.")
-
+    st.subheader("🚗 Relatório de Ocorrência - LPR")
+    
     col1, col2 = st.columns(2)
     with col1:
-        cliente = st.text_input("Nome do Cliente", value="Condomínio Cerejeiras")
-        placa = st.text_input("Placa do Veículo", value="ABC-1234")
+        cliente = st.text_input("Cliente", value="Condomínio Jardim das Cerejeiras")
+        unidade = st.text_input("Unidade (Apt/Casa)", placeholder="Ex: Apt 411")
     with col2:
-        operador = st.text_input("Operador/Técnico", value="Monitoramento")
-        data_input = st.date_input("Data do Evento")
-        data_formatada = data_input.strftime("%d/%m/%Y")
+        tecnico = st.text_input("Técnico Responsável", value="Luciano Pereira do Nascimento")
+        data = st.date_input("Data da Ocorrência").strftime("%d/%m/%Y")
 
     st.markdown("---")
-    
-    # --- 1. CONTEXTO (IA) ---
-    st.write("### 1. O que aconteceu? (Contexto)")
-    if "txt_lpr_contexto" not in st.session_state: st.session_state.txt_lpr_contexto = ""
-    
-    rascunho_ctx = st.text_area("Relato da ocorrência:", 
-                               placeholder="Ex: O morador do 302 reclamou que ficou parado 1 minuto e o portão não abriu...", height=60)
-    
-    if st.button("Formalizar Relato", key="btn_lpr_ctx", type="secondary"):
-        prompt = "Formalize este relato de ocorrência de portaria/controle de acesso."
-        st.session_state.txt_lpr_contexto = melhorar_texto_com_ia(rascunho_ctx + ". " + prompt, "Ocorrência LPR")
-        
-    contexto_final = st.text_area("Texto Final Contexto:", value=st.session_state.txt_lpr_contexto, height=100)
 
-    # --- 2. ANÁLISE TÉCNICA E HORÁRIOS ---
-    st.write("### 2. Análise Técnica")
+    # --- CAMPOS DE TEXTO ---
     
-    c_h1, c_h2, c_h3 = st.columns(3)
-    with c_h1: h_chegada = st.text_input("Chegada (HH:MM:SS)", value="14:10:05")
-    with c_h2: h_leitura = st.text_input("Leitura (HH:MM:SS)", value="14:10:15")
-    with c_h3: h_abertura = st.text_input("Abertura (HH:MM:SS)", value="14:10:25")
+    # 1. DESCRIÇÃO
+    st.write("### 📝 1. Descrição da Ocorrência")
+    if "txt_lpr_desc" not in st.session_state: st.session_state.txt_lpr_desc = ""
+    
+    rascunho_desc = st.text_area("O que o morador relatou?", 
+                                placeholder="Ex: Moradora do 411 disse que o portão não abriu na saída e usou o controle...", height=70)
+    
+    if st.button("Formalizar Descrição (IA)", key="btn_desc"):
+        if len(rascunho_desc) > 5:
+            with st.spinner("Reescrevendo..."):
+                st.session_state.txt_lpr_desc = melhorar_texto_com_ia(rascunho_desc, "Relato de Ocorrência LPR")
+    
+    desc_final = st.text_area("Texto Final (Descrição):", value=st.session_state.txt_lpr_desc, height=100)
 
-    if "txt_lpr_analise" not in st.session_state: st.session_state.txt_lpr_analise = ""
+    # 2. ANÁLISE TÉCNICA
+    st.write("### ⏱️ 2. Linha do Tempo e Análise")
+    st.caption("Descreva o que foi visto nas câmeras e logs (horários e fatos).")
+    if "txt_lpr_ana" not in st.session_state: st.session_state.txt_lpr_ana = ""
     
-    rascunho_analise = st.text_area("Por que demorou/falhou?", 
-                                   placeholder="Ex: O sol estava batendo na placa causando reflexo. Ou: A internet caiu.", height=60)
+    rascunho_ana = st.text_area("Fatos apurados:", 
+                               placeholder="Ex: 14:46:34 - Veículo parou muito na frente (além do balizador). 14:46:52 - Saiu sem leitura automática...", height=100)
     
-    if st.button("Formalizar Análise", key="btn_lpr_ana", type="secondary"):
-        prompt = "Explique tecnicamente a causa provável dessa falha de leitura LPR."
-        st.session_state.txt_lpr_analise = melhorar_texto_com_ia(rascunho_analise + ". " + prompt, "Análise Técnica LPR")
-        
-    analise_final = st.text_area("Texto Final Análise:", value=st.session_state.txt_lpr_analise, height=80)
+    if st.button("Formalizar Análise (IA)", key="btn_ana"):
+        if len(rascunho_ana) > 5:
+            with st.spinner("Organizando cronologicamente..."):
+                prompt = "Transforme em uma análise técnica cronológica de LPR: " + rascunho_ana
+                st.session_state.txt_lpr_ana = melhorar_texto_com_ia(prompt, "Análise Técnica LPR")
+                
+    ana_final = st.text_area("Texto Final (Análise):", value=st.session_state.txt_lpr_ana, height=150)
 
-    # --- 3. FOTOS ---
-    st.write("### 3. Evidências")
-    f1 = st.file_uploader("Foto 1: Chegada", type=['jpg', 'png'])
-    f2 = st.file_uploader("Foto 2: Leitura", type=['jpg', 'png'])
-    f3 = st.file_uploader("Foto 3: Abertura", type=['jpg', 'png'])
+    # 3. CONCLUSÃO
+    st.write("### ✅ 3. Conclusão")
+    opcoes_conclusao = [
+        "Escrever manualmente...",
+        "Sistema OK - Falha Operacional (Posicionamento incorreto)",
+        "Sistema OK - Contingência (Uso de controle antes do tempo)",
+        "Falha Técnica Confirmada (Instabilidade de Rede/Servidor)"
+    ]
+    escolha_conc = st.selectbox("Modelo de Conclusão:", options=opcoes_conclusao)
+    
+    texto_pre = ""
+    if "Posicionamento" in escolha_conc:
+        texto_pre = "O sistema operou normalmente. A ocorrência deveu-se ao posicionamento inadequado do veículo, fora da zona ideal de captura, impedindo a leitura automática."
+    elif "Contingência" in escolha_conc:
+        texto_pre = "O sistema estava processando a leitura dentro do tempo padrão (até 12s), porém o acionamento manual via controle remoto interrompeu o ciclo automático."
+    elif "Falha Técnica" in escolha_conc:
+        texto_pre = "Foi identificada instabilidade momentânea na comunicação entre o servidor LPR e a controladora, impedindo o envio do comando de abertura."
 
-    # --- 4. CONCLUSÃO (IA) ---
-    st.write("### 4. Conclusão")
-    if "txt_lpr_conclusao" not in st.session_state: st.session_state.txt_lpr_conclusao = ""
-    
-    rascunho_conc = st.text_area("O que foi feito?", placeholder="Ex: Liberado manualmente e aberto chamado pra ajustar a câmera.", height=60)
-    
-    if st.button("Formalizar Conclusão", key="btn_lpr_conc", type="secondary"):
-        st.session_state.txt_lpr_conclusao = melhorar_texto_com_ia(rascunho_conc, "Conclusão LPR")
-        
-    conclusao_final = st.text_area("Texto Final Conclusão:", value=st.session_state.txt_lpr_conclusao, height=80)
+    conc_final = st.text_area("Texto Final (Conclusão):", value=texto_pre, height=100)
+
+    # --- ANEXOS ---
+    st.markdown("---")
+    st.write("### 📷 Evidências")
+    upload_fotos = st.file_uploader("Fotos e Logs", accept_multiple_files=True, type=['jpg', 'png', 'jpeg'])
 
     if st.button("Gerar Relatório LPR", type="primary"):
-        # Função interna para salvar imagem temporária
-        def salvar_temp(arquivo, nome):
-            if arquivo:
-                if not os.path.exists("temp"): os.makedirs("temp")
-                caminho = os.path.join("temp", nome)
-                with open(caminho, "wb") as f: f.write(arquivo.getbuffer())
-                return caminho
-            return ""
+        # Salva fotos
+        lista_fotos = []
+        if upload_fotos:
+            if not os.path.exists("temp"): os.makedirs("temp")
+            for i, f in enumerate(upload_fotos):
+                path = f"temp/lpr_{i}.jpg"
+                with open(path, "wb") as file: file.write(f.getbuffer())
+                lista_fotos.append(path)
 
         dados = {
-            "cliente": cliente,
-            "data": data_formatada,
-            "placa": placa,
-            "operador": operador,
-            "contexto": contexto_final,
-            "hora_chegada": h_chegada,
-            "hora_leitura": h_leitura,
-            "hora_abertura": h_abertura,
-            "analise_tecnica": analise_final,
-            "conclusao": conclusao_final,
-            "img_chegada": salvar_temp(f1, "lpr_1.jpg"),
-            "img_leitura": salvar_temp(f2, "lpr_2.jpg"),
-            "img_abertura": salvar_temp(f3, "lpr_3.jpg")
+            "cliente": cliente, "unidade": unidade, "tecnico": tecnico, "data": data,
+            "descricao": desc_final, "analise": ana_final, "conclusao": conc_final,
+            "lista_fotos": lista_fotos
         }
 
         try:
             arquivo = gerar_relatorio_lpr(dados)
-            st.session_state.arquivo_gerado = arquivo
-            st.success("Relatório LPR gerado com sucesso!")
+            st.session_state['lpr_pronto'] = arquivo
+            st.success("Relatório LPR Gerado!")
         except Exception as e:
             st.error(f"Erro: {e}")
+
+    if 'lpr_pronto' in st.session_state:
+        with open(st.session_state['lpr_pronto'], "rb") as f:
+            st.download_button("📥 Baixar PDF", f, file_name=f"LPR_{dados['cliente'].replace(' ', '_')}_{dados['data'].replace('/','-')}.pdf")

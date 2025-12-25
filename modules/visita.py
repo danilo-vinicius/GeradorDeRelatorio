@@ -4,88 +4,138 @@ from utils.brasfort_pdf import RelatorioBrasfort
 from utils.ia_auxiliar import melhorar_texto_com_ia
 
 # --- MOTOR PDF ---
-def gerar_pdf_visita(dados):
+def gerar_pdf_vistoria(dados):
+    titulo_capa = "RELATÓRIO DE VISTORIA TÉCNICA" if dados['tipo_relatorio'] == "Levantamento" else "RELATÓRIO DE VISITA TÉCNICA"
+    
     pdf = RelatorioBrasfort(titulo="RELATÓRIO DE VISTORIA TÉCNICA")
     
     # Capa
     pdf.gerar_capa(
-        titulo_principal="Relatório de Visita Técnica",
-        sub_titulo=f"Local: {dados['cliente']}\nAssunto: {dados['assunto']}",
-        autor=dados['responsavel']
+        titulo_principal=titulo_capa,
+        sub_titulo=f"Cliente: {dados['cliente']}\nLocal: {dados['local']}",
+        autor=dados['tecnico']
     )
     
     pdf.add_page()
-    
+    pdf.ln(5)
+
+    # Título do Relatório
+    pdf._set_font('B', 16)
+    pdf.set_text_color(10, 35, 80)
+    pdf.cell(0, 10, pdf.titulo_documento, 0, 1, 'C')
+    pdf.ln(10)
+
     # Cabeçalho Interno
-    pdf.set_y(30)
     pdf.set_font('Barlow', 'B', 12)
     pdf.cell(0, 6, f"Cliente: {dados['cliente']}", ln=True)
     pdf.set_font('Barlow', '', 12)
     pdf.cell(0, 6, f"Data da Visita: {dados['data']}", ln=True)
     pdf.ln(10)
 
-    # --- 1. CENÁRIO ATUAL / DIAGNÓSTICO ---
-    # Baseado no relatório SQS 206 e Goiânia (descrição detalhada dos problemas)
+    # --- 1. INTRODUÇÃO / OBJETIVO ---
     pdf.set_font('Barlow', 'B', 12)
-    pdf.cell(0, 8, "1. Diagnóstico e Cenário Encontrado", ln=True)
-    
+    pdf.cell(0, 8, "1. OBJETIVO / INTRODUÇÃO", ln=True)
     pdf.set_font('Barlow', '', 11)
-    pdf.multi_cell(0, 6, dados['diagnostico'], align='J')
+    pdf.multi_cell(0, 6, dados['introducao'], align='J')
     pdf.ln(5)
 
-    # --- 2. SERVIÇOS EXECUTADOS (Se houver) ---
-    if len(dados['servicos']) > 5: # Só imprime se tiver texto
-        pdf.set_font('Barlow', 'B', 12)
-        pdf.cell(0, 8, "2. Intervenções Realizadas (Paliativas/Definitivas)", ln=True)
-        pdf.set_font('Barlow', '', 11)
-        pdf.multi_cell(0, 6, dados['servicos'], align='J')
-        pdf.ln(5)
-
-    # --- 3. RECOMENDAÇÕES TÉCNICAS (O Ouro do relatório) ---
-    # Baseado nas "Recomendações Urgentes" do relatório Goiânia
+    # --- 2. CONTEÚDO PRINCIPAL (Híbrido) ---
     pdf.set_font('Barlow', 'B', 12)
-    pdf.cell(0, 8, "3. Recomendações e Proposta Técnica", ln=True)
-    
-    pdf.set_font('Barlow', '', 11)
-    pdf.multi_cell(0, 6, dados['recomendacoes'], align='J')
-    pdf.ln(5)
+    titulo_secao2 = "2. CONSTATAÇÕES POR SETOR" if dados['tipo_relatorio'] == "Levantamento" else "2. DIAGNÓSTICO TÉCNICO E OCORRÊNCIAS"
+    pdf.cell(0, 8, titulo_secao2, ln=True)
+    pdf.ln(2)
 
-    # --- 4. PENDÊNCIAS DO CLIENTE (Importante!) ---
-    # Baseado no relatório QI 16 (Ações necessárias do cliente)
-    if len(dados['pendencias']) > 5:
-        pdf.set_fill_color(255, 240, 240) # Fundo levemente avermelhado para atenção
-        pdf.set_font('Barlow', 'B', 12)
-        pdf.cell(0, 8, "4. Adequações Necessárias (Responsabilidade do Cliente)", ln=True, fill=True)
+    # MODO A: TABELA (Levantamento/Projeto)
+    if dados['tipo_relatorio'] == "Levantamento" and dados['lista_constatacoes']:
+        pdf.set_font('Barlow', 'B', 10)
+        pdf.set_fill_color(10, 35, 80)
+        pdf.set_text_color(255, 255, 255)
         
-        pdf.set_font('Barlow', '', 11)
-        pdf.multi_cell(0, 6, dados['pendencias'], align='J')
-        pdf.ln(10)
-
-    # --- 5. REGISTRO FOTOGRÁFICO ---
-    # Baseado na estrutura visual do SQS 206 (Fotos grandes)
-    if dados['fotos']:
-        pdf.add_page()
-        pdf.set_font('Barlow', 'B', 12)
-        pdf.cell(0, 8, "5. Registro Fotográfico", ln=True)
-        pdf.ln(5)
+        # Cabeçalho da Tabela
+        pdf.cell(40, 8, "Setor / Local", 1, 0, 'C', True)
+        pdf.cell(75, 8, "Situação Atual / Problema", 1, 0, 'C', True)
+        pdf.cell(75, 8, "Recomendação Técnica", 1, 1, 'C', True)
         
-        # Loop para colocar fotos (2 por página para ficarem grandes e legíveis)
-        for i, caminho_foto in enumerate(dados['fotos']):
-            # Se for par e não for a primeira, verifica espaço
-            if i > 0 and i % 2 == 0:
-                pdf.add_page()
+        pdf.set_text_color(0, 0, 0)
+        pdf.set_font('Barlow', '', 10)
+        
+        for item in dados['lista_constatacoes']:
+            # Lógica para altura dinâmica da linha (baseada no maior texto)
+            # Simplificação: Usamos multi_cell simulado ou fixo. 
+            # Aqui vamos usar uma abordagem segura: Imprimir texto corrido se for muito grande
             
-            if os.path.exists(caminho_foto):
-                # Centraliza imagem
-                pdf.image(caminho_foto, x=30, w=150)
-                pdf.ln(2)
-                # Legenda genérica (Poderíamos implementar legenda individual no futuro)
-                pdf.set_font('Barlow', 'I', 9)
-                pdf.cell(0, 5, f"Figura {i+1}: Registro das condições locais", align='C', ln=True)
-                pdf.ln(10)
+            pdf.set_fill_color(245, 245, 245)
+            # Salva posição Y inicial
+            y_inicio = pdf.get_y()
+            
+            # Coluna 1
+            pdf.set_xy(10, y_inicio)
+            pdf.multi_cell(40, 6, item['local'], border='LTRB', align='L', fill=True)
+            h1 = pdf.get_y() - y_inicio
+            
+            # Coluna 2
+            pdf.set_xy(50, y_inicio)
+            pdf.multi_cell(75, 6, item['problema'], border='LTRB', align='L', fill=False)
+            h2 = pdf.get_y() - y_inicio
+            
+            # Coluna 3
+            pdf.set_xy(125, y_inicio)
+            pdf.multi_cell(75, 6, item['solucao'], border='LTRB', align='L', fill=False)
+            h3 = pdf.get_y() - y_inicio
+            
+            # Avança para a maior altura para não sobrepor
+            altura_max = max(h1, h2, h3)
+            pdf.set_y(y_inicio + altura_max)
+            
+        pdf.ln(5)
 
-    # Assinatura
-    pdf.bloco_assinatura(dados['responsavel'])
+    # MODO B: TEXTO LIVRE (Diagnóstico/Manutenção)
+    else:
+        pdf.set_font('Barlow', '', 11)
+        pdf.multi_cell(0, 6, dados['diagnostico_texto'], align='J')
+        pdf.ln(5)
+
+    # --- 3. RECOMENDAÇÕES GERAIS / MATERIAIS ---
+    if dados['recomendacoes']:
+        pdf.set_font('Barlow', 'B', 12)
+        pdf.cell(0, 8, "3. RECOMENDAÇÕES E LISTA DE MATERIAIS", ln=True)
+        pdf.set_font('Barlow', '', 11)
+        pdf.multi_cell(0, 6, dados['recomendacoes'], align='J')
+        pdf.ln(5)
+
+    # --- 4. CONCLUSÃO ---
+    pdf.set_font('Barlow', 'B', 12)
+    pdf.cell(0, 8, "4. CONCLUSÃO / PARECER FINAL", ln=True)
+    pdf.set_font('Barlow', '', 11)
+    pdf.multi_cell(0, 6, dados['conclusao'], align='J')
+    pdf.ln(10)
+
+    # --- 5. EVIDÊNCIAS (FOTOS) ---
+    if dados['lista_fotos']:
+        if pdf.get_y() > 220: pdf.add_page()
+        
+        pdf.set_font('Barlow', 'B', 12)
+        pdf.cell(0, 8, "ANEXO FOTOGRÁFICO", ln=True)
+        pdf.ln(5)
+        
+        for i, item in enumerate(dados['lista_fotos']):
+            caminho = item['caminho']
+            legenda = item['legenda']
+            
+            if os.path.exists(caminho):
+                # Verifica quebra de página
+                if pdf.get_y() + 90 > 280: pdf.add_page()
+                
+                # Centraliza
+                x_pos = (210 - 120) / 2
+                pdf.image(caminho, x=x_pos, w=120)
+                
+                pdf.ln(2)
+                pdf.set_font('Barlow', 'I', 10)
+                pdf.cell(0, 6, f"Foto {i+1}: {legenda}", align='C', ln=True)
+                pdf.ln(8)
+
+    pdf.bloco_assinatura(dados['tecnico'])
     
     nome_arquivo = f"Vistoria_{dados['cliente'].split()[0]}_{dados['data'].replace('/','-')}.pdf"
     pdf.output(nome_arquivo)
@@ -93,95 +143,153 @@ def gerar_pdf_visita(dados):
 
 # --- INTERFACE ---
 def renderizar_formulario_visita():
-    st.subheader("📋 Relatório de Vistoria Técnica Avançada")
-    st.caption("Documentação completa de levantamento, diagnóstico e recomendações.")
+    st.subheader("📋 Relatório de Visita Técnica / Vistoria")
+    st.caption("Gera relatórios detalhados de diagnóstico ou levantamento de infraestrutura.")
+
+    # --- SELEÇÃO DE MODO ---
+    tipo_relatorio = st.radio("Tipo de Relatório:", 
+                              ["Diagnóstico de Problemas (Texto Corrido)", "Levantamento de Projeto (Tabela de Setores)"],
+                              horizontal=True)
+    
+    modo = "Diagnostico" if "Texto" in tipo_relatorio else "Levantamento"
 
     col1, col2 = st.columns(2)
     with col1:
-        cliente = st.text_input("Cliente / Local", value="Residencial SQS 206")
-        assunto = st.text_input("Assunto Geral", value="Levantamento para Modernização de CFTV")
+        cliente = st.text_input("Cliente", value="Condomínio SQS 113")
+        local = st.text_input("Local / Referência", value="Bloco B")
+        assunto = st.text_input("Assunto Principal", value="Vistoria de Infraestrutura e CFTV")
     with col2:
-        responsavel = st.text_input("Responsável Técnico", value="Técnico Sênior")
-        data = st.date_input("Data da Vistoria").strftime("%d/%m/%Y")
+        tecnico = st.text_input("Técnico Responsável", value="Luciano Pereira")
+        data = st.date_input("Data da Visita").strftime("%d/%m/%Y")
 
     st.markdown("---")
 
-    # --- 1. DIAGNÓSTICO (IA) ---
-    st.write("### 1. Diagnóstico (O que você encontrou?)")
-    if "txt_diag_visita" not in st.session_state: st.session_state.txt_diag_visita = ""
+    # --- 1. INTRODUÇÃO (IA) ---
+    st.write("### 1. Introdução / Contexto")
+    if "txt_visita_intro" not in st.session_state: st.session_state.txt_visita_intro = ""
     
-    rascunho_diag = st.text_area("Descreva os problemas:", 
-                                placeholder="Ex: Fiação toda solta no pilotis, câmeras antigas que não pegam a noite, DVR apitando...",
-                                height=80)
+    rascunho_intro = st.text_area("Objetivo da visita (Rascunho):", 
+                                 placeholder="Ex: Fomos chamados para ver pq as câmeras pararam e verificar a cerca elétrica...", height=60)
     
-    if st.button("Formalizar Diagnóstico", key="btn_ia_diag", type="secondary"):
-        prompt = "Descreva tecnicamente o cenário encontrado, enfatizando riscos, obsolescência e estado de conservação."
-        st.session_state.txt_diag_visita = melhorar_texto_com_ia(rascunho_diag + ". " + prompt, "Diagnóstico de Vistoria")
-        
-    diag_final = st.text_area("Texto Final Diagnóstico:", value=st.session_state.txt_diag_visita, height=150)
+    if st.button("Formalizar Introdução", key="btn_intro"):
+        if len(rascunho_intro) > 5:
+            with st.spinner("Escrevendo formalmente..."):
+                prompt = f"Escreva uma introdução formal para um relatório técnico de {tipo_relatorio}. Contexto: {rascunho_intro}"
+                st.session_state.txt_visita_intro = melhorar_texto_com_ia(prompt, "Introdução Relatório")
+    
+    intro_final = st.text_area("Texto Final (Introdução):", value=st.session_state.txt_visita_intro, height=100)
 
-    # --- 2. SERVIÇOS REALIZADOS (IA) ---
-    st.write("### 2. O que foi feito na hora? (Opcional)")
-    if "txt_serv_visita" not in st.session_state: st.session_state.txt_serv_visita = ""
-    
-    rascunho_serv = st.text_area("Houve intervenção imediata?", 
-                                placeholder="Ex: Desliguei o buzzer do DVR e fixei o cabo solto com fita.", height=60)
-    
-    if st.button("Formalizar Serviços", key="btn_ia_serv", type="secondary"):
-        prompt = "Descreva as ações paliativas ou definitivas realizadas durante a visita técnica."
-        st.session_state.txt_serv_visita = melhorar_texto_com_ia(rascunho_serv + ". " + prompt, "Serviços em Vistoria")
-        
-    serv_final = st.text_area("Texto Final Serviços:", value=st.session_state.txt_serv_visita, height=100)
-
-    # --- 3. RECOMENDAÇÕES (IA) ---
-    st.write("### 3. Recomendações Técnicas (O que precisa ser feito?)")
-    if "txt_rec_visita" not in st.session_state: st.session_state.txt_rec_visita = ""
-    
-    rascunho_rec = st.text_area("O que sugerimos?", 
-                               placeholder="Ex: Trocar todas as câmeras por Full HD, passar tubulação nova galvanizada...",
-                               height=80)
-    
-    if st.button("Formalizar Recomendações", key="btn_ia_rec", type="secondary"):
-        prompt = "Liste recomendações técnicas em tópicos, focando em modernização, normas técnicas e segurança."
-        st.session_state.txt_rec_visita = melhorar_texto_com_ia(rascunho_rec + ". " + prompt, "Recomendações Técnicas")
-        
-    rec_final = st.text_area("Texto Final Recomendações:", value=st.session_state.txt_rec_visita, height=150)
-
-    # --- 4. PENDÊNCIAS CLIENTE ---
-    st.write("### 4. Responsabilidades do Cliente (Infra/Civil)")
-    st.caption("Ex: Pintura, poda de árvore, ponto de energia 110v.")
-    pendencias = st.text_area("O que o cliente precisa providenciar?", height=80)
-
-    # --- FOTOS ---
+    # --- 2. CONTEÚDO DINÂMICO ---
     st.markdown("---")
-    st.write("### Registro Fotográfico")
-    fotos = st.file_uploader("Selecione as fotos da vistoria", type=['jpg', 'png', 'jpeg'], accept_multiple_files=True)
+    
+    diagnostico_texto_final = ""
+    lista_constatacoes = []
 
+    if modo == "Diagnostico":
+        st.write("### 2. Diagnóstico Técnico (Ocorrências)")
+        if "txt_visita_diag" not in st.session_state: st.session_state.txt_visita_diag = ""
+        
+        rascunho_diag = st.text_area("O que foi encontrado? (Detalhes):", 
+                                    placeholder="Ex: Identificamos curto no disjuntor. O DVR queimou por causa de umidade na sala...", height=150)
+        
+        if st.button("Formalizar Diagnóstico", key="btn_diag"):
+            with st.spinner("Analisando tecnicamente..."):
+                prompt = "Reescreva como um diagnóstico técnico detalhado, citando causas prováveis e efeitos observados: " + rascunho_diag
+                st.session_state.txt_visita_diag = melhorar_texto_com_ia(prompt, "Diagnóstico Técnico")
+        
+        diagnostico_texto_final = st.text_area("Texto Final (Diagnóstico):", value=st.session_state.txt_visita_diag, height=200)
+
+    else: # MODO LEVANTAMENTO (TABELA)
+        st.write("### 2. Levantamento por Setor (Tabela)")
+        st.caption("Adicione linha por linha para criar a tabela de constatações.")
+        
+        if "tabela_vistoria" not in st.session_state:
+            st.session_state.tabela_vistoria = []
+            
+        with st.container(border=True):
+            c1, c2, c3 = st.columns([1, 2, 2])
+            with c1: t_local = st.text_input("Local/Setor", placeholder="Ex: Portaria")
+            with c2: t_prob = st.text_area("Situação Atual", placeholder="Ex: Câmera embaçada...", height=60)
+            with c3: t_sol = st.text_area("Recomendação", placeholder="Ex: Trocar por modelo IP...", height=60)
+            
+            if st.button("➕ Adicionar à Tabela"):
+                if t_local and t_prob:
+                    st.session_state.tabela_vistoria.append({
+                        "local": t_local, "problema": t_prob, "solucao": t_sol
+                    })
+                    st.rerun()
+        
+        if st.session_state.tabela_vistoria:
+            st.write("**Itens Adicionados:**")
+            st.table(st.session_state.tabela_vistoria)
+            if st.button("Limpar Tabela"):
+                st.session_state.tabela_vistoria = []
+                st.rerun()
+            lista_constatacoes = st.session_state.tabela_vistoria
+
+    # --- 3. RECOMENDAÇÕES ---
+    st.markdown("---")
+    st.write("### 3. Recomendações Gerais / Materiais")
+    rec_final = st.text_area("Lista de materiais ou ações necessárias:", height=100)
+
+    # --- 4. CONCLUSÃO (IA) ---
+    st.write("### 4. Conclusão")
+    if "txt_visita_conc" not in st.session_state: st.session_state.txt_visita_conc = ""
+    
+    rascunho_conc = st.text_area("Resumo final:", placeholder="Ex: O sistema está precário e precisa de reforma urgente...", height=60)
+    
+    if st.button("Formalizar Conclusão", key="btn_conc"):
+        with st.spinner("Concluindo..."):
+            prompt = "Escreva um parágrafo de conclusão técnica profissional baseada nisso: " + rascunho_conc
+            st.session_state.txt_visita_conc = melhorar_texto_com_ia(prompt, "Conclusão Técnica")
+            
+    conc_final = st.text_area("Texto Final (Conclusão):", value=st.session_state.txt_visita_conc, height=100)
+
+    # --- 5. FOTOS ---
+    st.markdown("---")
+    st.write("### 📷 Anexo Fotográfico")
+    
+    # Upload Múltiplo com Legenda
+    uploaded_files = st.file_uploader("Carregar Fotos", accept_multiple_files=True, type=['jpg', 'png', 'jpeg'])
+    
+    legendas = {}
+    if uploaded_files:
+        st.write("Legendas das Fotos:")
+        for i, file in enumerate(uploaded_files):
+            legendas[file.name] = st.text_input(f"Legenda para {file.name}", value=f"Vista do local {i+1}")
+
+    # --- GERAR ---
     if st.button("Gerar Relatório de Vistoria", type="primary"):
-        lista_fotos = []
-        if fotos:
+        # Processa Fotos
+        lista_fotos_final = []
+        if uploaded_files:
             if not os.path.exists("temp"): os.makedirs("temp")
-            for f in fotos:
-                caminho = f"temp/vistoria_{f.name}"
-                with open(caminho, "wb") as file:
-                    file.write(f.getbuffer())
-                lista_fotos.append(caminho)
+            for file in uploaded_files:
+                path = f"temp/vistoria_{file.name}"
+                with open(path, "wb") as f: f.write(file.getbuffer())
+                lista_fotos_final.append({
+                    "caminho": path,
+                    "legenda": legendas[file.name]
+                })
 
         dados = {
-            "cliente": cliente,
-            "assunto": assunto,
-            "responsavel": responsavel,
-            "data": data,
-            "diagnostico": diag_final,
-            "servicos": serv_final,
+            "tipo_relatorio": "Levantamento" if modo == "Levantamento" else "Diagnostico",
+            "cliente": cliente, "local": local, "assunto": assunto, "tecnico": tecnico, "data": data,
+            "introducao": intro_final,
+            "diagnostico_texto": diagnostico_texto_final,
+            "lista_constatacoes": lista_constatacoes, # Só preenchido se for modo Tabela
             "recomendacoes": rec_final,
-            "pendencias": pendencias,
-            "fotos": lista_fotos
+            "conclusao": conc_final,
+            "lista_fotos": lista_fotos_final
         }
 
         try:
-            arquivo = gerar_pdf_visita(dados)
-            st.session_state.arquivo_gerado = arquivo
-            st.success("Relatório de Vistoria gerado com sucesso!")
+            arquivo = gerar_pdf_vistoria(dados)
+            st.session_state['vistoria_pronto'] = arquivo
+            st.success("Relatório Gerado com Sucesso!")
         except Exception as e:
             st.error(f"Erro: {e}")
+
+    if 'vistoria_pronto' in st.session_state:
+        with open(st.session_state['vistoria_pronto'], "rb") as f:
+            st.download_button("📥 Baixar PDF Vistoria", f, file_name=f"Vistoria_{dados['cliente'].split()[0]}_{dados['data'].replace('/','-')}.pdf")

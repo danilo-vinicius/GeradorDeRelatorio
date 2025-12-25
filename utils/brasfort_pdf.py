@@ -47,10 +47,15 @@ class RelatorioBrasfort(FPDF):
                 pass 
             
         # Título do Relatório
-        self._set_font('B', 16)
+        self._set_font('B', 10)
         self.set_text_color(10, 35, 80)
         self.cell(0, 10, self.titulo_documento, 0, 1, 'R')
-        self.ln(10)
+        self.ln(5)
+
+        # Linha fina
+        self.set_draw_color(200, 200, 200)
+        self.line(10, self.get_y(), 200, self.get_y())
+        self.ln(2)
 
     def footer(self):
         # TRAVA DE RODAPÉ (CORRIGIDA): 
