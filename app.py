@@ -2,8 +2,7 @@ import streamlit as st
 import os
 
 # Importação dos módulos
-from modules import lpr, visita, faturamento, manutencao, ocorrencia, ordem_servico, parecer
-
+from modules import lpr, visita, faturamento, manutencao, ocorrencia, ordem_servico, parecer, relatorio_geral
 # Configuração
 st.set_page_config(page_title="Gerador de Relatórios Brasfort", page_icon="📄", layout="wide")
 
@@ -16,6 +15,7 @@ with st.sidebar:
         "Selecione o Relatório:",
         [
             "Selecione...",
+            "Relatório Geral (Flexivel)",
             "Relatório de Manutenção",
             "Relatório para Faturamento",
             "Visita/Vistoria Técnica",
@@ -50,3 +50,5 @@ elif tipo_relatorio == "Relatório de Ocorrência":
     ocorrencia.renderizar_formulario_ocorrencia()
 elif tipo_relatorio == "Ordem de Serviço (construção)":
     ordem_servico.renderizar_formulario_os()
+elif tipo_relatorio == "Relatório Geral (Flexivel)":
+    relatorio_geral.renderizar_relatorio_geral()

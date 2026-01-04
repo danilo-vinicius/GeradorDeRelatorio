@@ -91,7 +91,7 @@ class RelatorioBrasfort(FPDF):
         self._set_font('B', 11)
         self.set_text_color(0, 0, 0)
         self.cell(0, 5, "Elaborado por:", ln=True)
-        self.ln(10)
+        self.ln(5)
         
         self._set_font('', 11)
         self.cell(0, 5, nome_tecnico, ln=True)
@@ -105,9 +105,9 @@ class RelatorioBrasfort(FPDF):
 
         # Design (Faixa Dourada/Azul)
         self.set_fill_color(10, 35, 80) # Azul Escuro
-        self.rect(0, 0, 8, 50, 'F') 
+        self.rect(0, 0, 5, 50, 'F') 
         self.set_fill_color(220, 190, 110) # Dourado
-        self.rect(0, 50, 8, 297-50, 'F') 
+        self.rect(0, 50, 5, 297-50, 'F') 
 
         # Logo Grande
         self.set_y(20)
@@ -148,7 +148,7 @@ class RelatorioBrasfort(FPDF):
         self.set_x(20)
         self._set_font('', 11)
         self.set_text_color(100, 100, 100)
-        self.cell(0, 10, f"Data: {data_extenso}", ln=True)
+        self.cell(0, 10, f"{data_extenso}", ln=True)
 
         # Rodapé EXCLUSIVO da Capa
         self.set_y(-20)
