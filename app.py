@@ -2,7 +2,7 @@ import streamlit as st
 import os
 
 # Importação dos módulos
-from modules import lpr, visita, faturamento, manutencao, ocorrencia, ordem_servico, parecer, relatorio_geral, universal
+from modules import lpr, visita, faturamento, manutencao, ocorrencia, ordem_servico, parecer, relatorio_geral, universal, cronograma
 # Configuração
 st.set_page_config(page_title="Gerador de Relatórios Brasfort", page_icon="📄", layout="wide")
 
@@ -17,6 +17,7 @@ with st.sidebar:
             "Selecione...",
             "Brasfort Docs (Universal)",
             "Relatório Geral (Flexivel)",
+            "Cronograma de Projeto/Visitas",
             "Relatório de Manutenção",
             "Relatório para Faturamento",
             "Visita/Vistoria Técnica",
@@ -59,3 +60,6 @@ elif tipo_relatorio == "Relatório Geral (Flexivel)":
 
 elif tipo_relatorio == "Brasfort Docs (Universal)":
         universal.renderizar_universal()
+
+elif tipo_relatorio == "Cronograma de Projeto/Visitas":
+    cronograma.renderizar_cronograma()
