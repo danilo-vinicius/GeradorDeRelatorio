@@ -6,12 +6,12 @@ def gerar_pdf_faturamento(dados):
     # Título que vai aparecer no cabeçalho das páginas 2, 3, etc.
     pdf = RelatorioBrasfort(titulo="RELATÓRIO DE FATURAMENTO")
     
-    # Gera a Capa (Página 1)
-    pdf.gerar_capa(
-        titulo_principal="Relatório de Faturamento",
-        sub_titulo=f"Cliente: {dados['cliente']}\nReferência: {dados['referencia']}",
-        autor=dados['tecnico']
-    )
+   # Gera a Capa (Página 1)
+   # pdf.gerar_capa(
+      #  titulo_principal="Relatório de Faturamento",
+      #  sub_titulo=f"Cliente: {dados['cliente']}\nReferência: {dados['referencia']}",
+      #  autor=dados['tecnico']
+   # )
     
     # Adiciona Página 2 (Agora com cabeçalho automático)
     pdf.add_page()
